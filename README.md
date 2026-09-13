@@ -91,7 +91,7 @@ fraud_detection/
 
 ### Main Application
 
-![CreditGuard AI Home Page](screenshots/home.png)
+![CreditGuard AI Home Page]home.png
 
 ### Normal Transaction Prediction
 
