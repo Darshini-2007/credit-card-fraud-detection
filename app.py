@@ -20,51 +20,44 @@ st.set_page_config(
 
 
 # ------------------------------------------------------------
-# Custom CSS - Increase Font Sizes and Improve UI
+# Custom CSS
 # ------------------------------------------------------------
 
 st.markdown(
     """
     <style>
 
-    /* Main application title */
     h1 {
         font-size: 42px !important;
         font-weight: 700 !important;
     }
 
-    /* Main section headings */
     h2 {
         font-size: 32px !important;
         font-weight: 650 !important;
     }
 
-    /* Smaller headings */
     h3 {
         font-size: 26px !important;
         font-weight: 600 !important;
     }
 
-    /* Normal paragraph text */
     p {
         font-size: 18px !important;
         line-height: 1.6 !important;
     }
 
-    /* Sidebar heading */
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3 {
         font-size: 24px !important;
     }
 
-    /* Sidebar text */
     [data-testid="stSidebar"] p {
         font-size: 17px !important;
         line-height: 1.6 !important;
     }
 
-    /* Buttons */
     .stButton > button {
         font-size: 18px !important;
         font-weight: 600 !important;
@@ -73,49 +66,36 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* Radio button labels */
     [data-testid="stRadio"] label {
         font-size: 18px !important;
     }
 
-    /* File uploader text */
     [data-testid="stFileUploader"] {
         font-size: 18px !important;
     }
 
-    /* Tabs */
     button[data-baseweb="tab"] {
         font-size: 18px !important;
         font-weight: 600 !important;
     }
 
-    /* Metric values */
     [data-testid="stMetricValue"] {
         font-size: 30px !important;
         font-weight: 700 !important;
     }
 
-    /* Metric labels */
     [data-testid="stMetricLabel"] {
         font-size: 18px !important;
     }
 
-    /* Success, warning, and info messages */
     [data-testid="stAlert"] {
         font-size: 17px !important;
     }
 
-    /* Expanders */
     [data-testid="stExpander"] {
         font-size: 17px !important;
     }
 
-    /* Dataframe text */
-    [data-testid="stDataFrame"] {
-        font-size: 16px !important;
-    }
-
-    /* Footer */
     .footer-text {
         text-align: center;
         font-size: 15px !important;
@@ -130,16 +110,50 @@ st.markdown(
 
 
 # ------------------------------------------------------------
-# Load Saved Model
+# Load Saved Model Files
 # ------------------------------------------------------------
 
 @st.cache_resource
 def load_model_files():
+
     model = joblib.load("fraud_detection_model.pkl")
     threshold = joblib.load("fraud_threshold.pkl")
     feature_names = joblib.load("fraud_features.pkl")
 
     return model, threshold, feature_names
+
+
+# ------------------------------------------------------------
+# Load Model with Error Handling
+# ------------------------------------------------------------
+
+try:
+
+    model, threshold, feature_names = load_model_files()
+
+except FileNotFoundError:
+
+    st.error(
+        """
+        Model files were not found.
+
+        Please make sure these files are in the same folder as app.py:
+
+        - fraud_detection_model.pkl
+        - fraud_threshold.pkl
+        - fraud_features.pkl
+        """
+    )
+
+    st.stop()
+
+except Exception as error:
+
+    st.error(
+        f"Error while loading the model files: {error}"
+    )
+
+    st.stop()
 
 
 # ------------------------------------------------------------
@@ -164,37 +178,23 @@ st.info(
 
 
 # ------------------------------------------------------------
-# Load Model with Error Handling
-# ------------------------------------------------------------
-
-try:
-    model, threshold, feature_names = load_model_files()
-
-except FileNotFoundError:
-    st.error(
-        """
-        Saved model files were not found.
-
-        Please run `fraud_detection.py` first to generate:
-
-        - fraud_detection_model.pkl
-        - fraud_threshold.pkl
-        - fraud_features.pkl
-        """
-    )
-
-    st.stop()
-
-
-# ------------------------------------------------------------
 # Sidebar Information
 # ------------------------------------------------------------
 
 st.sidebar.header("📊 Model Information")
 
 st.sidebar.write("**Model:** Random Forest Classifier")
-st.sidebar.write(f"**Decision Threshold:** {threshold}")
-st.sidebar.write(f"**Number of Features:** {len(feature_names)}")
+st.sidebar.write(
+    f"**Decision Threshold:** {threshold}"
+)
+st.sidebar.write(
+    f"**Number of Features:** {len(feature_names)}"
+)
+
+st.sidebar.markdown("---")
+
+st.sidebar.success("Model Status: Ready")
+st.sidebar.info("Application Status: Online")
 
 st.sidebar.markdown("---")
 
@@ -279,75 +279,91 @@ with tab1:
 
                 prediction_data = uploaded_df[feature_names]
 
-                fraud_probabilities = model.predict_proba(
-                    prediction_data
-                )[:, 1]
+                non_numeric_columns = prediction_data.select_dtypes(
+                    exclude=[np.number]
+                ).columns.tolist()
 
-                predictions = (
-                    fraud_probabilities >= threshold
-                ).astype(int)
+                if non_numeric_columns:
 
-                results_df = uploaded_df.copy()
-
-                results_df["Fraud Probability (%)"] = (
-                    fraud_probabilities * 100
-                ).round(2)
-
-                results_df["Prediction"] = np.where(
-                    predictions == 1,
-                    "Fraudulent Transaction",
-                    "Normal Transaction"
-                )
-
-                st.success(
-                    "Prediction completed successfully!"
-                )
-
-                st.subheader("Prediction Results")
-
-                st.dataframe(
-                    results_df,
-                    use_container_width=True
-                )
-
-                normal_count = int(
-                    (predictions == 0).sum()
-                )
-
-                fraud_count = int(
-                    (predictions == 1).sum()
-                )
-
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.metric(
-                        "Total Transactions",
-                        len(results_df)
+                    st.error(
+                        "These columns must contain numeric values: "
+                        + ", ".join(non_numeric_columns)
                     )
 
-                with col2:
-                    st.metric(
-                        "Normal Transactions",
-                        normal_count
+                else:
+
+                    fraud_probabilities = model.predict_proba(
+                        prediction_data
+                    )[:, 1]
+
+                    predictions = (
+                        fraud_probabilities >= threshold
+                    ).astype(int)
+
+                    results_df = uploaded_df.copy()
+
+                    results_df["Fraud Probability (%)"] = (
+                        fraud_probabilities * 100
+                    ).round(2)
+
+                    results_df["Prediction"] = np.where(
+                        predictions == 1,
+                        "Fraudulent Transaction",
+                        "Normal Transaction"
                     )
 
-                with col3:
-                    st.metric(
-                        "Fraudulent Transactions",
-                        fraud_count
+                    st.success(
+                        "Prediction completed successfully!"
                     )
 
-                output_csv = results_df.to_csv(
-                    index=False
-                ).encode("utf-8")
+                    st.subheader("Prediction Results")
 
-                st.download_button(
-                    label="⬇️ Download Prediction Results",
-                    data=output_csv,
-                    file_name="fraud_predictions.csv",
-                    mime="text/csv"
-                )
+                    st.dataframe(
+                        results_df,
+                        use_container_width=True
+                    )
+
+                    normal_count = int(
+                        (predictions == 0).sum()
+                    )
+
+                    fraud_count = int(
+                        (predictions == 1).sum()
+                    )
+
+                    col1, col2, col3 = st.columns(3)
+
+                    with col1:
+
+                        st.metric(
+                            "Total Transactions",
+                            len(results_df)
+                        )
+
+                    with col2:
+
+                        st.metric(
+                            "Normal Transactions",
+                            normal_count
+                        )
+
+                    with col3:
+
+                        st.metric(
+                            "Fraudulent Transactions",
+                            fraud_count
+                        )
+
+                    output_csv = results_df.to_csv(
+                        index=False
+                    ).encode("utf-8")
+
+                    st.download_button(
+                        label="⬇️ Download Prediction Results",
+                        data=output_csv,
+                        file_name="fraud_predictions.csv",
+                        mime="text/csv"
+                    )
 
         except Exception as error:
 
@@ -387,19 +403,60 @@ with tab2:
 
         try:
 
+            # Check whether the original dataset exists
+            import os
+
+            if not os.path.exists("creditcard.csv"):
+
+                st.error(
+                    """
+                    The file creditcard.csv was not found.
+
+                    Please place creditcard.csv in the same folder
+                    as app.py to use the Test Sample feature.
+                    """
+                )
+
+                st.stop()
+
+            # Load original dataset
             dataset = pd.read_csv(
                 "creditcard.csv",
                 encoding="latin1"
             )
 
+            # Remove duplicate rows
             dataset = dataset.drop_duplicates()
 
+            # Separate features and target
             X = dataset.drop("Class", axis=1)
             y = dataset["Class"]
 
+            # Check required columns
+            missing_features = [
+                feature
+                for feature in feature_names
+                if feature not in X.columns
+            ]
+
+            if missing_features:
+
+                st.error(
+                    "The dataset is missing these features: "
+                    + ", ".join(missing_features)
+                )
+
+                st.stop()
+
+            # Keep the same feature order used during training
+            X = X[feature_names]
+
+            # Select transaction
             if sample_type == "First transaction":
 
                 transaction = X.iloc[0]
+
+                actual_class = y.iloc[0]
 
             elif sample_type == "Actual fraud transaction":
 
@@ -408,29 +465,38 @@ with tab2:
                 if len(fraud_transactions) == 0:
 
                     st.error(
-                        "No fraudulent transaction found."
+                        "No fraudulent transaction found in the dataset."
                     )
 
                     st.stop()
 
                 transaction = fraud_transactions.iloc[0]
 
+                actual_class = 1
+
             else:
 
-                transaction = X.sample(
+                random_index = X.sample(
                     n=1,
                     random_state=None
-                ).iloc[0]
+                ).index[0]
 
+                transaction = X.loc[random_index]
+
+                actual_class = y.loc[random_index]
+
+            # Convert selected transaction into DataFrame
             transaction_df = pd.DataFrame(
                 [transaction],
                 columns=feature_names
             )
 
+            # Predict fraud probability
             fraud_probability = model.predict_proba(
                 transaction_df
             )[0][1]
 
+            # Apply saved threshold
             prediction = (
                 "Fraudulent Transaction"
                 if fraud_probability >= threshold
@@ -455,6 +521,7 @@ with tab2:
                     f"{fraud_probability * 100:.2f}%"
                 )
 
+            # Display prediction message
             if prediction == "Fraudulent Transaction":
 
                 st.error(
@@ -469,12 +536,25 @@ with tab2:
                     "as normal."
                 )
 
+            # Display actual class for transparency
+            st.caption(
+                f"Actual dataset class: "
+                f"{'Fraudulent' if actual_class == 1 else 'Normal'}"
+            )
+
+            # Display transaction features
             with st.expander("👁️ View Transaction Features"):
 
                 st.dataframe(
                     transaction_df,
                     use_container_width=True
                 )
+
+        except FileNotFoundError:
+
+            st.error(
+                "The file creditcard.csv was not found."
+            )
 
         except Exception as error:
 
