@@ -371,7 +371,6 @@ with tab1:
                 f"Error while processing the uploaded file: {error}"
             )
 
-
 # ============================================================
 # TAB 2: TEST SAMPLE
 # ============================================================
@@ -382,15 +381,15 @@ with tab2:
 
     st.write(
         """
-        Select a transaction from the original dataset
-        and use the trained model to predict its class.
+        Test a sample transaction using the trained fraud detection model.
+        These samples are provided for educational demonstration purposes.
         """
     )
 
     sample_type = st.radio(
         "Choose transaction type for testing:",
         [
-            "First transaction",
+            "Normal transaction",
             "Actual fraud transaction",
             "Random transaction"
         ]
@@ -403,100 +402,117 @@ with tab2:
 
         try:
 
-            # Check whether the original dataset exists
-            import os
+            # ------------------------------------------------
+            # Create an empty transaction
+            # ------------------------------------------------
 
-            if not os.path.exists("creditcard.csv"):
-
-                st.error(
-                    """
-                    The file creditcard.csv was not found.
-
-                    Please place creditcard.csv in the same folder
-                    as app.py to use the Test Sample feature.
-                    """
-                )
-
-                st.stop()
-
-            # Load original dataset
-            dataset = pd.read_csv(
-                "creditcard.csv",
-                encoding="latin1"
-            )
-
-            # Remove duplicate rows
-            dataset = dataset.drop_duplicates()
-
-            # Separate features and target
-            X = dataset.drop("Class", axis=1)
-            y = dataset["Class"]
-
-            # Check required columns
-            missing_features = [
-                feature
-                for feature in feature_names
-                if feature not in X.columns
-            ]
-
-            if missing_features:
-
-                st.error(
-                    "The dataset is missing these features: "
-                    + ", ".join(missing_features)
-                )
-
-                st.stop()
-
-            # Keep the same feature order used during training
-            X = X[feature_names]
-
-            # Select transaction
-            if sample_type == "First transaction":
-
-                transaction = X.iloc[0]
-
-                actual_class = y.iloc[0]
-
-            elif sample_type == "Actual fraud transaction":
-
-                fraud_transactions = X[y == 1]
-
-                if len(fraud_transactions) == 0:
-
-                    st.error(
-                        "No fraudulent transaction found in the dataset."
-                    )
-
-                    st.stop()
-
-                transaction = fraud_transactions.iloc[0]
-
-                actual_class = 1
-
-            else:
-
-                random_index = X.sample(
-                    n=1,
-                    random_state=None
-                ).index[0]
-
-                transaction = X.loc[random_index]
-
-                actual_class = y.loc[random_index]
-
-            # Convert selected transaction into DataFrame
-            transaction_df = pd.DataFrame(
-                [transaction],
+            sample_transaction = pd.DataFrame(
+                np.zeros(
+                    (1, len(feature_names))
+                ),
                 columns=feature_names
             )
 
-            # Predict fraud probability
+            # ------------------------------------------------
+            # Normal Transaction
+            # ------------------------------------------------
+
+            if sample_type == "Normal transaction":
+
+                if "Time" in feature_names:
+                    sample_transaction["Time"] = 50000
+
+                if "Amount" in feature_names:
+                    sample_transaction["Amount"] = 100
+
+                for feature in feature_names:
+
+                    if feature not in ["Time", "Amount"]:
+                        sample_transaction[feature] = 0.0
+
+            # ------------------------------------------------
+            # Actual Fraud Transaction Example
+            # ------------------------------------------------
+
+            elif sample_type == "Actual fraud transaction":
+
+                fraud_values = {
+                    "Time": 406,
+                    "V1": -2.312227,
+                    "V2": 1.951992,
+                    "V3": -1.609851,
+                    "V4": 3.997906,
+                    "V5": -0.522188,
+                    "V6": -1.426545,
+                    "V7": -2.537387,
+                    "V8": 1.391657,
+                    "V9": -2.770089,
+                    "V10": -2.772272,
+                    "V11": 3.202033,
+                    "V12": -2.899907,
+                    "V13": -0.595222,
+                    "V14": -4.289254,
+                    "V15": 0.389724,
+                    "V16": -1.140747,
+                    "V17": -2.830056,
+                    "V18": -0.016822,
+                    "V19": 0.416956,
+                    "V20": 0.126911,
+                    "V21": 0.517232,
+                    "V22": -0.035049,
+                    "V23": -0.465211,
+                    "V24": 0.320198,
+                    "V25": 0.044519,
+                    "V26": 0.177840,
+                    "V27": 0.261145,
+                    "V28": -0.143276,
+                    "Amount": 0.00
+                }
+
+                for feature, value in fraud_values.items():
+
+                    if feature in feature_names:
+                        sample_transaction[feature] = value
+
+            # ------------------------------------------------
+            # Random Transaction
+            # ------------------------------------------------
+
+            else:
+
+                rng = np.random.default_rng(42)
+
+                for feature in feature_names:
+
+                    if feature == "Time":
+
+                        sample_transaction[feature] = rng.uniform(
+                            0,
+                            172800
+                        )
+
+                    elif feature == "Amount":
+
+                        sample_transaction[feature] = rng.uniform(
+                            1,
+                            5000
+                        )
+
+                    else:
+
+                        sample_transaction[feature] = rng.uniform(
+                            -3,
+                            3
+                        )
+
+            # ------------------------------------------------
+            # Make Prediction
+            # ------------------------------------------------
+
             fraud_probability = model.predict_proba(
-                transaction_df
+                sample_transaction
             )[0][1]
 
-            # Apply saved threshold
             prediction = (
                 "Fraudulent Transaction"
                 if fraud_probability >= threshold
@@ -521,7 +537,6 @@ with tab2:
                     f"{fraud_probability * 100:.2f}%"
                 )
 
-            # Display prediction message
             if prediction == "Fraudulent Transaction":
 
                 st.error(
@@ -536,32 +551,19 @@ with tab2:
                     "as normal."
                 )
 
-            # Display actual class for transparency
-            st.caption(
-                f"Actual dataset class: "
-                f"{'Fraudulent' if actual_class == 1 else 'Normal'}"
-            )
-
-            # Display transaction features
             with st.expander("👁️ View Transaction Features"):
 
                 st.dataframe(
-                    transaction_df,
+                    sample_transaction,
                     use_container_width=True
                 )
-
-        except FileNotFoundError:
-
-            st.error(
-                "The file creditcard.csv was not found."
-            )
 
         except Exception as error:
 
             st.error(
                 f"Error while predicting the sample: {error}"
             )
-
+                    
 
 # ============================================================
 # TAB 3: ABOUT PROJECT
