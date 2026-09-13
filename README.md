@@ -74,8 +74,6 @@ Using the selected decision threshold of 0.20:
 These values are based on the test data and may vary if the model is retrained.
 
 ## Project Structure
-
-```text
 fraud_detection/
 ├── app.py
 ├── fraud_detection.py
@@ -92,18 +90,15 @@ fraud_detection/
 ### Main Application
 
 ![CreditGuard AI Home Page](home.png)
-(normal_prediction.png)
-(fraud_prediction.png)
-(csv_results.png)
 
 ### Normal Transaction Prediction
 
-![Normal Transaction Prediction](screenshots/normal_prediction.png)
+![Normal Transaction Prediction](normal_prediction.png)
 
 ### Fraudulent Transaction Prediction
 
-![Fraudulent Transaction Prediction](screenshots/fraud_prediction.png)
+![Fraudulent Transaction Prediction](fraud_prediction.png)
 
 ### CSV Upload and Prediction Results
 
-![CSV Prediction Results](screenshots/csv_results.png)
+![CSV Prediction Results](csv_results.png)
