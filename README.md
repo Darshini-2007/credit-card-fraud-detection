@@ -102,3 +102,5 @@ fraud_detection/
 ### CSV Upload and Prediction Results
 
 ![CSV Prediction Results](csv_results.png)
+##Demo
+https://credit-card-fraud-detection-mmvvu7aats84mjkrgryhqb.streamlit.app/
